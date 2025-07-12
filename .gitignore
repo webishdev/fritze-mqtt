@@ -1,0 +1,6 @@
+.env
+downloads/
+dist/
+build/
+.idea/
+fritze-mqtt
