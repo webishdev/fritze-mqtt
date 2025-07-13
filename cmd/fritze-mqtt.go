@@ -8,7 +8,10 @@ import (
 	"github.com/webishdev/fritze-mqtt/fritzbox"
 	"github.com/webishdev/fritze-mqtt/internal"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"sync"
+	"syscall"
 )
 
 var Version = "development"
@@ -19,6 +22,10 @@ var listOnly = false
 var baseUrl string
 var username string
 var password string
+
+var sigs chan os.Signal
+var controllerTeardown chan byte
+var mqttTeardown chan byte
 
 var versionMessage = fmt.Sprintf("Fritze MQTT (Version: %s, Hash: %s)", Version, GitHash)
 
@@ -90,10 +97,39 @@ func do() error {
 		return nil
 	}
 
-	err := internal.StartController(client, username, password)
-	if err != nil {
-		fmt.Println(err)
-	}
+	sigs = make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	controllerTeardown = make(chan byte, 1)
+	mqttTeardown = make(chan byte, 1)
+
+	go func() {
+		<-sigs
+		mqttTeardown <- 1
+		controllerTeardown <- 1
+	}()
+
+	var wg sync.WaitGroup
+
+	go func() {
+		defer wg.Done()
+		err := internal.StartController(controllerTeardown, client, username, password)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		err := internal.StartMQTT(mqttTeardown, "localhost", 1883, "test")
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+	wg.Add(1)
+
+	wg.Wait()
 
 	return nil
 }

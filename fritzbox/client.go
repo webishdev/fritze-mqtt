@@ -99,7 +99,7 @@ func (fc *fritzClient) Logout(s Session) error {
 	}
 	defer resp.Body.Close()
 
-	log.Info("logout")
+	log.Info("Logged out successfully for sid=%s", s.GetSID())
 
 	return nil
 }

@@ -3,18 +3,10 @@ package internal
 import (
 	"github.com/webishdev/fritze-mqtt/fritzbox"
 	"github.com/webishdev/fritze-mqtt/log"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 )
 
-var sigs chan os.Signal
-
-func StartController(fc fritzbox.FritzClient, username string, password string) error {
-	sigs = make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
+func StartController(controllerChan chan byte, fc fritzbox.FritzClient, username string, password string) error {
 	session, errLogin := fc.Login(username, password)
 	if errLogin != nil {
 		return errLogin
@@ -24,10 +16,10 @@ func StartController(fc fritzbox.FritzClient, username string, password string) 
 
 	go handler(deviceChan)
 
-	return loop(fc, session, deviceChan)
+	return loop(controllerChan, fc, session, deviceChan)
 }
 
-func loop(fc fritzbox.FritzClient, session fritzbox.Session, deviceChan chan []fritzbox.Device) error {
+func loop(sigs chan byte, fc fritzbox.FritzClient, session fritzbox.Session, deviceChan chan []fritzbox.Device) error {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -37,9 +29,9 @@ func loop(fc fritzbox.FritzClient, session fritzbox.Session, deviceChan chan []f
 		}
 		deviceChan <- devices
 		select {
-		case sig := <-sigs:
-			switch sig {
-			case syscall.SIGINT, syscall.SIGTERM:
+		case <-sigs:
+			{
+				log.Info("Received SIGINT/SIGTERM")
 				errLogout := fc.Logout(session)
 				return errLogout
 			}
