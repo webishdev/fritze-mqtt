@@ -19,7 +19,7 @@ func StartController(controllerChan chan byte, fc fritzbox.FritzClient, username
 	return loop(controllerChan, fc, session, deviceChan)
 }
 
-func loop(sigs chan byte, fc fritzbox.FritzClient, session fritzbox.Session, deviceChan chan []fritzbox.Device) error {
+func loop(controllerChan chan byte, fc fritzbox.FritzClient, session fritzbox.Session, deviceChan chan []fritzbox.Device) error {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -29,9 +29,8 @@ func loop(sigs chan byte, fc fritzbox.FritzClient, session fritzbox.Session, dev
 		}
 		deviceChan <- devices
 		select {
-		case <-sigs:
+		case <-controllerChan:
 			{
-				log.Info("Received SIGINT/SIGTERM")
 				errLogout := fc.Logout(session)
 				return errLogout
 			}

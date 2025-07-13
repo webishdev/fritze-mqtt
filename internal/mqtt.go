@@ -20,6 +20,8 @@ func StartMQTT(mqttChan chan byte, broker string, port int, topic string) error 
 		return token.Error()
 	}
 
+	log.Info("Successfully connected to MQTT broker at %s", brokerURL)
+
 	token := client.Subscribe(topic, 1, nil)
 
 	token.Wait()
@@ -29,6 +31,7 @@ func StartMQTT(mqttChan chan byte, broker string, port int, topic string) error 
 	case <-mqttChan:
 		{
 			client.Disconnect(0)
+			log.Info("Disconnected from MQTT broker at %s", brokerURL)
 			return nil
 		}
 	}
